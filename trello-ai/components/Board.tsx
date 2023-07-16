@@ -1,22 +1,76 @@
 "use client";
-import { useBearStore, useBoardStore } from "@/store/BoardStore";
+import { useBoardStore } from "@/store/BoardStore";
 import { useEffect } from "react";
-import { DragDropContext, Droppable } from "react-beautiful-dnd";
+import {
+  DragDropContext,
+  DropResult,
+  Droppable,
+  ResponderProvided,
+} from "react-beautiful-dnd";
+import Column from "./Column";
 
 function Board() {
-  const getBoard = useBoardStore((state) => state.getBoard);
+  const [board, getBoard, setBoardState] = useBoardStore((state) => [
+    state.board,
+    state.getBoard,
+    state.setBoardState,
+  ]);
 
   useEffect(() => {
     getBoard();
   }, []);
 
+  console.log("board", board);
+
+  function handleOnDragEnd(
+    result: DropResult,
+    provided: ResponderProvided
+  ): void {
+    const { destination, source, type } = result;
+
+    if (!destination) return;
+
+    if (type === "column") {
+      const entries = Array.from(board.columns.entries());
+      const [removed] = entries.splice(source.index, 1);
+      entries.splice(destination.index, 0, removed);
+      const rearrangedColumns = new Map(entries);
+      setBoardState({
+        ...board,
+        columns: rearrangedColumns,
+      });
+    }
+
+    const columns = Array.from(board.columns);
+    const startColIndex = columns[Number(source.droppableId)];
+    const finishColIndex = columns[Number(destination.droppableId)];
+
+    const startCol: Column = {
+      id: startColIndex[0],
+      todos: startColIndex[1].todos,
+    };
+    const finishCol: Column = {
+      id: finishColIndex[0],
+      todos: finishColIndex[1].todos,
+    };
+  }
+
   return (
-    <h2>hello</h2>
-    // <DragDropContext>
-    //   <Droppable droppableId="board" direction="horizontal" type="column">
-    //     {(provided) => <div>{/* ALL COLUMNS */}</div>}
-    //   </Droppable>
-    // </DragDropContext>
+    <DragDropContext onDragEnd={handleOnDragEnd}>
+      <Droppable droppableId="board" direction="horizontal" type="column">
+        {(provided) => (
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-7xl mx-auto"
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+          >
+            {Array.from(board.columns.entries()).map(([id, column], index) => (
+              <Column key={id} id={id} todos={column.todos} index={index} />
+            ))}
+          </div>
+        )}
+      </Droppable>
+    </DragDropContext>
   );
 }
 
